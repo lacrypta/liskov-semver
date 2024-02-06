@@ -1,0 +1,27 @@
+{
+  "name": "@lacrypta/liskov-semver",
+  "version": "0.1.0",
+  "description": "A SemVer checker using Liskov's Substitution Principle",
+  "keywords": [
+    "SemVer",
+    "Liskov"
+  ],
+  "license": "AGPL-3.0-or-later",
+  "homepage": "https://lacrypta.ar",
+  "bugs": {
+    "url": "https://github.com/lacrypta/liskov-semver/issues",
+    "email": "bugs@lacrypta.ar"
+  },
+  "repository": "github:lacrypta/liskov-semver",
+  "author": {
+    "name": "La Crypta",
+    "url": "https://lacrypta.ar",
+    "email": "info@lacrypta.ar"
+  },
+  "contributors": [],
+  "sideEffects": false,
+  "bin": "bin.js",
+  "dependencies": {
+    "yargs": "^17.7.2"
+  }
+}

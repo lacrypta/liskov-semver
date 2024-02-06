@@ -1,0 +1,11 @@
+dist/
+node_modules/
+
+.*
+!.github/
+!.editorconfig
+!.gitattributes
+!.gitconfig
+!.gitignore
+!.gitkeep
+!.npmrc
