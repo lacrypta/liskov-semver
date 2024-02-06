@@ -20,6 +20,7 @@
   },
   "contributors": [],
   "sideEffects": false,
+  "type": "module",
   "bin": "bin.js",
   "dependencies": {
     "yargs": "^17.7.2"
