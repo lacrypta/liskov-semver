@@ -21,7 +21,7 @@
   "contributors": [],
   "sideEffects": false,
   "type": "module",
-  "bin": "./src/main.mjs",
+  "bin": "./main.mjs",
   "dependencies": {
     "semver": "^7.6.0",
     "yargs": "^17.7.2"

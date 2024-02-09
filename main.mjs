@@ -185,6 +185,16 @@ async function packTo(dir, to) {
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------
+// -- SemVer ------------------------------------------------------------------------------------------------------------------------------
+// ----------------------------------------------------------------------------------------------------------------------------------------
+
+function latest(leftSemVer, rightSemVer) {
+  let semVers = [leftSemVer, rightSemVer];
+  semVers.sort(semver.rcompare);
+  return semVers[0];
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------
 // -- Main --------------------------------------------------------------------------------------------------------------------------------
 // ----------------------------------------------------------------------------------------------------------------------------------------
 
@@ -237,7 +247,7 @@ async function createTgzAndGetEntryPointsAndVersion(root, base, ref, name) {
   return [entryPoints, packageJsonContents.version ?? null];
 }
 
-async function hydrateBaseDirectoryAndGetPreviousSemver(
+async function hydrateBaseDirectoryAndGetSemver(
   root,
   previousVersion,
   currentVersion,
@@ -245,7 +255,7 @@ async function hydrateBaseDirectoryAndGetPreviousSemver(
 ) {
   const [
     [previousVersionEndpoints, previousSemVer],
-    [currentVersionEndpoints],
+    [currentVersionEndpoints, currentSemVer],
   ] = await Promise.all([
     await createTgzAndGetEntryPointsAndVersion(
       root,
@@ -325,7 +335,7 @@ async function hydrateBaseDirectoryAndGetPreviousSemver(
     throw new Error("error: failed to install");
   }
 
-  return previousSemVer;
+  return [previousSemVer, currentSemVer];
 }
 
 async function tscOk(base, file) {
@@ -344,17 +354,23 @@ async function liskovSemVerForwardsBackwards(
   currentVersion
 ) {
   return withTempDir(path.join(os.tmpdir(), "liskov-semver-"), async (base) => {
-    const previousSemVer = await hydrateBaseDirectoryAndGetPreviousSemver(
-      root,
-      previousVersion,
-      currentVersion,
-      base
-    );
+    const [previousSemVer, currentSemVer] =
+      await hydrateBaseDirectoryAndGetSemver(
+        root,
+        previousVersion,
+        currentVersion,
+        base
+      );
     const [currentFitsPrevious, previousFitsCurrent] = await Promise.all([
       tscOk(base, "currentFitsPrevious.ts"),
       tscOk(base, "previousFitsCurrent.ts"),
     ]);
-    return [previousSemVer, currentFitsPrevious, previousFitsCurrent];
+    return [
+      previousSemVer,
+      currentSemVer,
+      currentFitsPrevious,
+      previousFitsCurrent,
+    ];
   });
 }
 
@@ -387,24 +403,27 @@ async function main(errorOnDirty, errorOnUnreachable) {
     );
   }
 
-  const [previousSemVer, forwards, backwards] =
+  const [previousSemVer, currentSemVer, forwards, backwards] =
     await liskovSemVerForwardsBackwards(root, previousVersion, currentVersion);
 
+  let newSemVer = "0.1.0";
   if (forwards) {
     if (backwards) {
       // patch
-      return semver.inc(previousSemVer, "patch");
+      newSemVer = semver.inc(previousSemVer, "patch");
     } else {
       // minor
-      return semver.inc(previousSemVer, "minor");
+      newSemVer = semver.inc(previousSemVer, "minor");
     }
   } else if (0 === semver.major(previousSemVer)) {
     // minor
-    return semver.inc(previousSemVer, "minor");
+    newSemVer = semver.inc(previousSemVer, "minor");
   } else {
     // major
-    return semver.inc(previousSemVer, "major");
+    newSemVer = semver.inc(previousSemVer, "major");
   }
+
+  return latest(newSemVer, semver.parse(currentSemVer));
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------
@@ -434,17 +453,15 @@ const argv = await yargs(hideBin(process.argv))
   .option("error-on-dirty", {
     boolean: true,
     default: true,
-    description: "show error if the working directory is not clean",
+    description: "Show error if the working directory is not clean",
     global: true,
-    group: "Errors:",
   })
   .option("error-on-unreachable", {
     boolean: true,
     default: true,
     description:
-      "show error if the latest semver tag cannot reach the current branch",
+      "Show error if the latest semver tag cannot reach the current branch",
     global: true,
-    group: "Errors:",
   })
   .epilog(
     'Boolean options have "opposites" starting with a "--no-" prefix, eg. "--no-error-on-dirty".'
