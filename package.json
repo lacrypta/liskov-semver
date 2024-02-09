@@ -23,7 +23,6 @@
   "type": "module",
   "bin": "./src/main.mjs",
   "dependencies": {
-    "isomorphic-git": "^1.25.3",
     "semver": "^7.6.0",
     "yargs": "^17.7.2"
   }
