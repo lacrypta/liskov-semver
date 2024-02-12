@@ -161,7 +161,7 @@ async function rename(dir, name) {
 
 async function build(dir) {
   process.stderr.write(`[START] Building package in ${dir}\n`);
-  const { code } = await spawn("pnpm", ["run", "build"], {
+  const { code } = await spawn("pnpm", ["run", "--if-present", "build"], {
     cwd: dir,
   });
   process.stderr.write(`[DONE] Building package in ${dir}\n`);
