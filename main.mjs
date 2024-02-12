@@ -489,6 +489,6 @@ try {
   );
   process.exit(0);
 } catch (e) {
-  process.stderr.write(e.message);
+  process.stderr.write(`${e.message}\n`);
   process.exit(1);
 }
