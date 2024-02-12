@@ -424,9 +424,12 @@ async function main(errorOnDirty, errorOnUnreachable) {
     );
   }
 
+  if (previousVersionHash === currentVersionHash) {
+    return semver.valid(previousVersion);
+  }
+
   if (
     errorOnUnreachable &&
-    previousVersionHash !== currentVersionHash &&
     !(await isReachable(root, previousVersion, currentVersion))
   ) {
     throw new Error(
