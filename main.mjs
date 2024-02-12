@@ -31,18 +31,40 @@ import { hideBin } from "yargs/helpers";
 // -- OS ----------------------------------------------------------------------------------------------------------------------------------
 // ----------------------------------------------------------------------------------------------------------------------------------------
 
+function prefixAll(lines, prefix) {
+  return (
+    lines
+      .trim()
+      .split("\n")
+      .map((line) => `${prefix} ${line}`)
+      .join("\n") + "\n"
+  );
+}
+
 async function spawn(command, args, options) {
   return new Promise((resolve, _reject) => {
     let stdout = "";
     let stderr = "";
+    const boundary = `${command} ${args.map((arg) => `[${arg}]`).join(" ")}\n`;
+    process.stderr.write(`[START] ${boundary}`);
     try {
       const child = child_process.spawn(command, args, options);
       child.stdout.setEncoding("utf8");
       child.stdout.on("data", (data) => (stdout += data.toString()));
       child.stderr.setEncoding("utf8");
       child.stderr.on("data", (data) => (stderr += data.toString()));
-      child.on("close", (code) => resolve({ code, stdout, stderr }));
+      child.on("close", (code) => {
+        process.stderr.write(prefixAll(stdout, "[OUT]"));
+        process.stderr.write(prefixAll(stderr, "[ERR]"));
+        process.stderr.write(`[CODE] ${code}\n`);
+        process.stderr.write(`[DONE] ${boundary}`);
+        resolve({ code, stdout, stderr });
+      });
     } catch (e) {
+      process.stderr.write(prefixAll(stdout, "[OUT]"));
+      process.stderr.write(prefixAll(stderr, "[ERR]"));
+      process.stderr.write(`[CODE] ${code}`);
+      process.stderr.write(`[DONE] ${boundary}`);
       resolve({ code: e.code, stdout, stderr });
     }
   });
@@ -116,7 +138,6 @@ async function getCurrentBranch(root) {
 }
 
 async function cloneTo(root, to, ref) {
-  process.stderr.write(`[START] Cloning ${root}@${ref} into ${to}\n`);
   const { code } = await spawn("git", [
     "clone",
     "--branch",
@@ -133,7 +154,6 @@ async function cloneTo(root, to, ref) {
     `file://${root}`,
     to,
   ]);
-  process.stderr.write(`[DONE] Cloning ${root}@${ref} into ${to}\n`);
   return 0 === code;
 }
 
@@ -142,47 +162,37 @@ async function cloneTo(root, to, ref) {
 // ----------------------------------------------------------------------------------------------------------------------------------------
 
 async function install(dir) {
-  process.stderr.write(`[START] Installing dependencies in ${dir}\n`);
   const { code } = await spawn("pnpm", ["install"], {
     cwd: dir,
   });
-  process.stderr.write(`[DONE] Installing dependencies in ${dir}\n`);
   return 0 === code;
 }
 
 async function rename(dir, name) {
-  process.stderr.write(`[START] Renaming package in ${dir} to '${name}'\n`);
   const { code } = await spawn("pnpm", ["pkg", "set", `name=${name}`], {
     cwd: dir,
   });
-  process.stderr.write(`[DONE] Renaming package in ${dir} to '${name}'\n`);
   return 0 === code;
 }
 
 async function build(dir) {
-  process.stderr.write(`[START] Building package in ${dir}\n`);
   const { code } = await spawn("pnpm", ["run", "--if-present", "build"], {
     cwd: dir,
   });
-  process.stderr.write(`[DONE] Building package in ${dir}\n`);
   return 0 === code;
 }
 
 async function packTo(dir, to) {
-  process.stderr.write(`[START] Packing package in ${dir}\n`);
   const { code: packCode, stdout: packStdout } = await spawn("pnpm", ["pack"], {
     cwd: dir,
   });
-  process.stderr.write(`[DONE] Packing package in ${dir}\n`);
   if (0 !== packCode) {
     return false;
   }
-  process.stderr.write(`[START] Moving packed package in ${dir} to ${to}\n`);
   const { code: mvCode } = await spawn("mv", [
     path.resolve(dir, packStdout.trim()),
     to,
   ]);
-  process.stderr.write(`[DONE] Moving packed package in ${dir} to ${to}\n`);
   return 0 === mvCode;
 }
 
@@ -342,11 +352,9 @@ async function hydrateBaseDirectoryAndGetSemver(
 
 async function tscOk(base, file) {
   const ts = path.join(base, file);
-  process.stderr.write(`[START] Running tsc on ${ts}\n`);
   const { code } = await spawn("tsc", ["--noEmit", "--strict", ts], {
     cwd: base,
   });
-  process.stderr.write(`[DONE] Running tsc on ${ts}\n`);
   return 0 === code;
 }
 
