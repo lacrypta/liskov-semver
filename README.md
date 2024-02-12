@@ -39,12 +39,11 @@ Although somewhat strange, what these files do is effective check whether the "n
 We then simply call `tsc` in order to type-check each of these files.
 This may yield different results, according to the table below:
 
-| `tsc newToOld.ts` | `tsc oldToNew.ts` | Result                              | Bump  |
-| :---------------: | :---------------: | :---------------------------------- | :---: |
-|      **OK**       |      **OK**       | Versions are mutually compatible    | patch |
-|      **OK**       |     **FAIL**      | New version is backwards-compatible | minor |
-|     **FAIL**      |     **FAIL**      | New version adds functionality      | major |
-|     **FAIL**      |      **OK**       | New version removes functionality   | major |
+| `tsc newToOld.ts` | `tsc oldToNew.ts` | Result                                | Bump  |
+| :---------------: | :---------------: | :------------------------------------ | :---: |
+|      **OK**       |      **OK**       | Versions are mutually compatible      | patch |
+|      **OK**       |     **FAIL**      | New version is backwards-compatible   | minor |
+|     **FAIL**      |     **--**      | New version is backwards-incompatible | major |
 
 Based off of the value of `version` in the `package.json` file for the "old" version, this script will bump the appropriate version segment, and print it on `stdout`, provided this is larger than the value of `version` in the `package.json` file for the "new" version.
 
