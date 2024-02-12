@@ -127,6 +127,8 @@ async function cloneTo(root, to, ref) {
     "1",
     "--single-branch",
     "--no-tags",
+    "--recurse-submodules",
+    "--shallow-submodules",
     "--",
     `file://${root}`,
     to,
