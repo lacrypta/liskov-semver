@@ -43,9 +43,14 @@ This may yield different results, according to the table below:
 | :---------------: | :---------------: | :------------------------------------ | :---: |
 |      **OK**       |      **OK**       | Versions are mutually compatible      | patch |
 |      **OK**       |     **FAIL**      | New version is backwards-compatible   | minor |
-|     **FAIL**      |     **--**      | New version is backwards-incompatible | major |
+|     **FAIL**      |     **--**        | New version is backwards-incompatible | major |
 
 Based off of the value of `version` in the `package.json` file for the "old" version, this script will bump the appropriate version segment, and print it on `stdout`, provided this is larger than the value of `version` in the `package.json` file for the "new" version.
+
+### Major Version Handling
+
+This tool will _never_ update the major version when it is `0`, updating the minor version instead.
+The rationale behind this is that `0` major versions indicate unstable development, and as such, it should be manually bumped to the first production version.
 
 ## Usage
 
