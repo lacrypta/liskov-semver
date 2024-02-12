@@ -262,9 +262,6 @@ async function createTgzAndGetEntryPointsAndVersion(root, base, ref, name) {
       .filter(([_key, value]) => typeof value === "object" && "types" in value)
       .map(([key, _value]) => key)
   );
-  if (0 === entryPoints.length) {
-    entryPoints.push("");
-  }
   entryPoints.sort();
 
   return [entryPoints, packageJsonContents.version ?? null];
