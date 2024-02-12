@@ -137,6 +137,17 @@ async function getCurrentBranch(root) {
   return 0 === code ? stdout.trim() : null;
 }
 
+async function getRefCommit(root, ref, refType) {
+  const { code, stdout } = await spawn(
+    "git",
+    ["rev-list", "-1", `${refType}s/${ref}`],
+    {
+      cwd: root,
+    }
+  );
+  return 0 === code ? stdout.trim() : null;
+}
+
 async function cloneTo(root, to, ref) {
   const { code } = await spawn("git", [
     "clone",
@@ -398,14 +409,27 @@ async function main(errorOnDirty, errorOnUnreachable) {
   if (null === previousVersion) {
     return "0.1.0";
   }
+  const previousVersionHash = await getRefCommit(root, previousVersion, "tag");
+  if (null === previousVersionHash) {
+    throw new Error(
+      `error: cannot determine commit for previous version (${previousVersion})`
+    );
+  }
 
   const currentVersion = await getCurrentBranch(root);
   if (null === currentVersion) {
     throw new Error("error: no current version --- detached HEAD?");
   }
+  const currentVersionHash = await getRefCommit(root, currentVersion, "head");
+  if (null === currentVersionHash) {
+    throw new Error(
+      `error: cannot determine commit for current version (${currentVersion})`
+    );
+  }
 
   if (
     errorOnUnreachable &&
+    previousVersionHash !== currentVersionHash &&
     !(await isReachable(root, previousVersion, currentVersion))
   ) {
     throw new Error(
