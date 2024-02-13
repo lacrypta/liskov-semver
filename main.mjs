@@ -169,32 +169,32 @@ async function cloneTo(root, to, ref) {
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------
-// -- pNPM --------------------------------------------------------------------------------------------------------------------------------
+// -- NPM ---------------------------------------------------------------------------------------------------------------------------------
 // ----------------------------------------------------------------------------------------------------------------------------------------
 
 async function install(dir) {
-  const { code } = await spawn("pnpm", ["install"], {
+  const { code } = await spawn("npm", ["install"], {
     cwd: dir,
   });
   return 0 === code;
 }
 
 async function rename(dir, name) {
-  const { code } = await spawn("pnpm", ["pkg", "set", `name=${name}`], {
+  const { code } = await spawn("npm", ["pkg", "set", `name=${name}`], {
     cwd: dir,
   });
   return 0 === code;
 }
 
 async function build(dir) {
-  const { code } = await spawn("pnpm", ["run", "--if-present", "build"], {
+  const { code } = await spawn("npm", ["run", "--if-present", "build"], {
     cwd: dir,
   });
   return 0 === code;
 }
 
 async function packTo(dir, to) {
-  const { code: packCode, stdout: packStdout } = await spawn("pnpm", ["pack"], {
+  const { code: packCode, stdout: packStdout } = await spawn("npm", ["pack"], {
     cwd: dir,
   });
   if (0 !== packCode) {
