@@ -93,3 +93,21 @@ One way of doing this is:
 ```
 
 This will ensure the `package.json`'s `version` field is updated prior to publishing.
+
+## Is this enough for my versioning needs?
+
+No.
+
+This tool will deal with "structural" changes in your public API, it has no way of detecting "semantic" changes introduced without modifying the API's structure.
+
+There are, of course, techniques and practices that can alleviate this problem, and most of them consist of turning "semantic" changes into "structural" changes (ie. interface tagging, entry points versioning, etc.), and if you're using one of these, this tool will pick up on those changes just as well.
+
+## TODO
+
+- [ ] Check the package manager to use by inspecting marker files (ie. `pnpm-loc-yaml`, `package-lock.json`, `yarn.lock`).
+- [ ] Add options for performing a full "bump run":
+  - detect new SemVer
+  - modify `package.json` with it
+  - commit the modified `package.json`
+  - tag with `v{semVer}`
+  - push everything
