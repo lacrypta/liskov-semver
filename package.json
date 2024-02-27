@@ -1,6 +1,6 @@
 {
   "name": "@lacrypta/liskov-semver",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "A SemVer checker using Liskov's Substitution Principle",
   "keywords": [
     "SemVer",
