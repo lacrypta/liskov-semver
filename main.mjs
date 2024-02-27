@@ -160,30 +160,13 @@ async function isDirty(root) {
 }
 
 /**
- * Determine whether one git reference is reachable from another.
- *
- * @param {string} root - The git root to query.
- * @param {string} oldRef - The git reference to use as "source".
- * @param {string} newRef - The git reference to use as "destination"
- * @returns {Promise<boolean>} Resolves to `true` if the "destination" is reachable from the "source", `false` otherwise.
- */
-async function isReachable(root, oldRef, newRef) {
-  const { code, stdout } = await spawn(
-    "git",
-    ["rev-list", "--boundary", `${oldRef}..${newRef}`],
-    { cwd: root }
-  );
-  return 0 === code && "" !== stdout.trim();
-}
-
-/**
  * Retrieve the largest amongst all the tags that look as semver `string`s.
  *
  * @param {string} root - The git root to query.
  * @returns {Promise<string | null>} Resolves to the tag that looks like the highest semver `string`, or `null` if none found.
  */
 async function getHighestVersionTag(root) {
-  const { code, stdout } = await spawn("git", ["tag", "--list"], {
+  const { code, stdout } = await spawn("git", ["tag", "--merged"], {
     cwd: root,
   });
   let tags =
@@ -644,10 +627,9 @@ async function liskovSemVerForwardsBackwards(
  * Main Liskov SemVer executor.
  *
  * @param {boolean} errorOnDirty - Whether a dirty git root is an error or not.
- * @param {boolean} errorOnUnreachable - Whether the "previous" version's commit not being able to reach the "current" version's one is an error or not.
  * @returns {Promise<string>} Resolves to the semver `string` determined to be adequate for the current changes.
  */
-async function main(errorOnDirty, errorOnUnreachable) {
+async function main(errorOnDirty) {
   const root = await getRoot(".");
   if (null === root) {
     throw new Error("error: cannot determine git root");
@@ -681,15 +663,6 @@ async function main(errorOnDirty, errorOnUnreachable) {
 
   if (previousVersionHash === currentVersionHash) {
     return semver.parse(previousVersion);
-  }
-
-  if (
-    errorOnUnreachable &&
-    !(await isReachable(root, previousVersion, currentVersion))
-  ) {
-    throw new Error(
-      "error: current version is not reachable from previous version"
-    );
   }
 
   const [previousSemVer, currentSemVer, forwards, backwards] =
@@ -745,13 +718,6 @@ const argv = await yargs(hideBin(process.argv))
     description: "Show error if the working directory is not clean",
     global: true,
   })
-  .option("error-on-unreachable", {
-    boolean: true,
-    default: true,
-    description:
-      "Show error if the latest semver tag cannot reach the current branch",
-    global: true,
-  })
   .epilog(
     'Boolean options have "opposites" starting with a "--no-" prefix, eg. "--no-error-on-dirty".'
   )
@@ -763,9 +729,7 @@ const argv = await yargs(hideBin(process.argv))
   .parse();
 
 try {
-  process.stdout.write(
-    `${await main(argv.errorOnDirty, argv.errorOnUnreachable)}\n`
-  );
+  process.stdout.write(`${await main(argv.errorOnDirty)}\n`);
   process.exit(0);
 } catch (e) {
   process.stderr.write(`${e.message}\n`);
