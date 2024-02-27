@@ -372,6 +372,7 @@ async function createVersionWitnesses(
           dependencies: {
             previousVersion: "./previousVersion.tgz",
             currentVersion: "./currentVersion.tgz",
+            typescript: "next",
           },
         },
         null,
