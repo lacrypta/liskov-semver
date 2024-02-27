@@ -169,42 +169,93 @@ async function cloneTo(root, to, ref) {
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------
-// -- NPM ---------------------------------------------------------------------------------------------------------------------------------
+// -- *PM ---------------------------------------------------------------------------------------------------------------------------------
 // ----------------------------------------------------------------------------------------------------------------------------------------
 
-async function install(dir) {
-  const { code } = await spawn("npm", ["install"], {
-    cwd: dir,
-  });
+async function pm(dir) {
+  if (await exists(path.join(dir, "yarn.lock"))) {
+    return "yarn";
+  } else if (await exists(path.join(dir, "pnpm-lock.yaml"))) {
+    return "pnpm";
+  }
+  return "npm";
+}
+
+async function pm_install(dir) {
+  const command = await pm(dir);
+  const args = {
+    yarn: ["install", "--production"],
+    pnpm: ["install", "--prod"],
+    npm: ["install", "--production"],
+  };
+  const { code } = await spawn(command, args[command], { cwd: dir });
   return 0 === code;
 }
 
-async function rename(dir, name) {
+async function pm_rename(dir, name) {
   const { code } = await spawn("npm", ["pkg", "set", `name=${name}`], {
     cwd: dir,
   });
   return 0 === code;
 }
 
-async function build(dir) {
-  const { code } = await spawn("npm", ["run", "--if-present", "build"], {
-    cwd: dir,
-  });
-  return 0 === code;
+async function pm_build(dir) {
+  const command = await pm(dir);
+  switch (command) {
+    case "yarn":
+      const packageJsonContents = JSON.parse(
+        fs.readFileSync(path.join(dir, "package.json"))
+      );
+      if (typeof packageJsonContents !== "object") {
+        throw new Error("error: malformed package.json");
+      }
+      if (
+        typeof packageJsonContents.scripts === "object" &&
+        undefined !== packageJsonContents.scripts.build
+      ) {
+        const { code } = await spawn("yarn", ["run", "build"], { cwd: dir });
+        return 0 === code;
+      }
+      return true;
+    case "pnpm":
+    case "npm":
+      const { code } = await spawn(command, ["run", "--if-present", "build"], {
+        cwd: dir,
+      });
+      return 0 === code;
+  }
 }
 
-async function packTo(dir, to) {
-  const { code: packCode, stdout: packStdout } = await spawn("npm", ["pack"], {
-    cwd: dir,
-  });
-  if (0 !== packCode) {
-    return false;
+async function pm_packTo(dir, to) {
+  const command = await pm(dir);
+  let packed = null;
+  switch (command) {
+    case "yarn":
+      const { code: yarnPackCode } = await spawn("yarn", ["pack"], {
+        cwd: dir,
+      });
+      if (0 !== yarnPackCode) {
+        return false;
+      }
+      packed = "package.tgz";
+      break;
+    case "pnpm":
+    case "npm":
+      const { code: npmPnpmPackCode, stdout: npmPnpmPackStdout } = await spawn(
+        command,
+        ["pack"],
+        {
+          cwd: dir,
+        }
+      );
+      if (0 !== npmPnpmPackCode) {
+        return false;
+      }
+      packed = npmPnpmPackStdout.trim();
+      break;
   }
-  const { code: mvCode } = await spawn("mv", [
-    path.resolve(dir, packStdout.trim()),
-    to,
-  ]);
-  return 0 === mvCode;
+  const { code } = await spawn("mv", [path.resolve(dir, packed), to]);
+  return 0 === code;
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------
@@ -235,16 +286,16 @@ async function createTgzAndGetEntryPointsAndVersion(root, base, ref, name) {
     throw new Error("error: no package.json found after cloning");
   }
 
-  if (!(await rename(dir, name))) {
+  if (!(await pm_rename(dir, name))) {
     throw new Error("error: failed to rename");
   }
-  if (!(await install(dir))) {
+  if (!(await pm_install(dir))) {
     throw new Error("error: failed to install");
   }
-  if (!(await build(dir))) {
+  if (!(await pm_build(dir))) {
     throw new Error("error: failed to build");
   }
-  if (!(await packTo(dir, path.join(base, `${name}.tgz`)))) {
+  if (!(await pm_packTo(dir, path.join(base, `${name}.tgz`)))) {
     throw new Error("error: failed to pack");
   }
 
@@ -351,7 +402,7 @@ async function hydrateBaseDirectoryAndGetSemver(
     ),
   ]);
 
-  if (!(await install(base))) {
+  if (!(await pm_install(base))) {
     throw new Error("error: failed to install");
   }
 
