@@ -63,14 +63,28 @@ Options:
   -h, -?, --help              Show help                                   [boolean]
       --error-on-dirty        show error if the working directory is not clean
                                                           [boolean] [default: true]
-      --error-on-unreachable  show error if the latest semver tag cannot reach
-                              the current branch          [boolean] [default: true]
 
 Boolean options have "opposites" starting with a "--no-" prefix, eg.
 "--no-error-on-dirty".
 
 Copyright (C) 2024  La Crypta
 Released under the AGPLv3+ License <https://www.gnu.org/licenses/agpl-3.0.html>
+```
+
+### Testing
+
+You may run tests like so:
+
+```sh
+$ tests/test
+Testing "Initial commit" ... passed!
+Testing "Make an inconsequential change" ... passed!
+Testing "Make a minor change" ... passed!
+Testing "Make a major change" ... passed!
+Testing "Make yet another inconsequential change" ... passed!
+Testing "Make yet another minor change" ... passed!
+Testing "Make yet another major change" ... passed!
+All tests passed! :D
 ```
 
 ## What can you use it for?
@@ -101,13 +115,3 @@ No.
 This tool will deal with "structural" changes in your public API, it has no way of detecting "semantic" changes introduced without modifying the API's structure.
 
 There are, of course, techniques and practices that can alleviate this problem, and most of them consist of turning "semantic" changes into "structural" changes (ie. interface tagging, entry points versioning, etc.), and if you're using one of these, this tool will pick up on those changes just as well.
-
-## TODO
-
-- [ ] Check the package manager to use by inspecting marker files (ie. `pnpm-loc-yaml`, `package-lock.json`, `yarn.lock`).
-- [ ] Add options for performing a full "bump run":
-  - detect new SemVer
-  - modify `package.json` with it
-  - commit the modified `package.json`
-  - tag with `v{semVer}`
-  - push everything
