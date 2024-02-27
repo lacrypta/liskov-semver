@@ -272,7 +272,7 @@ function latest(leftSemVer, rightSemVer) {
 // -- Main --------------------------------------------------------------------------------------------------------------------------------
 // ----------------------------------------------------------------------------------------------------------------------------------------
 
-async function createTgzAndGetEntryPointsAndVersion(root, base, ref, name) {
+async function createTgzDependency(root, ref, base, name) {
   const dir = path.join(base, name);
 
   await fs.promises.mkdir(dir);
@@ -280,12 +280,6 @@ async function createTgzAndGetEntryPointsAndVersion(root, base, ref, name) {
   if (!(await cloneTo(root, dir, ref))) {
     throw new Error("error: failed to clone to temporary directory");
   }
-
-  const packageJsonPath = path.join(dir, "package.json");
-  if (!(await exists(packageJsonPath))) {
-    throw new Error("error: no package.json found after cloning");
-  }
-
   if (!(await pm_rename(dir, name))) {
     throw new Error("error: failed to rename");
   }
@@ -299,7 +293,10 @@ async function createTgzAndGetEntryPointsAndVersion(root, base, ref, name) {
     throw new Error("error: failed to pack");
   }
 
-  const packageJsonContents = JSON.parse(fs.readFileSync(packageJsonPath));
+function extractEntryPointsAndVersion(dir) {
+  const packageJsonContents = JSON.parse(
+    fs.readFileSync(path.join(dir, "package.json"))
+  );
   if (typeof packageJsonContents !== "object") {
     throw new Error("error: malformed package.json");
   }
@@ -315,56 +312,52 @@ async function createTgzAndGetEntryPointsAndVersion(root, base, ref, name) {
   );
   entryPoints.sort();
 
-  return [entryPoints, packageJsonContents.version ?? null];
+  return [entryPoints, semver.valid(packageJsonContents.version ?? null)];
 }
 
-async function hydrateBaseDirectoryAndGetSemver(
+async function createVersionWitnesses(
   root,
   previousVersion,
   currentVersion,
   base
 ) {
-  const [
-    [previousVersionEndpoints, previousSemVer],
-    [currentVersionEndpoints, currentSemVer],
-  ] = await Promise.all([
-    await createTgzAndGetEntryPointsAndVersion(
-      root,
-      base,
-      previousVersion,
-      "previousVersion"
-    ),
-    await createTgzAndGetEntryPointsAndVersion(
-      root,
-      base,
-      currentVersion,
-      "currentVersion"
-    ),
+  await Promise.all([
+    await createTgzDependency(root, previousVersion, base, "previousVersion"),
+    await createTgzDependency(root, currentVersion, base, "currentVersion"),
   ]);
+
+  const [previousEndpoints, previousSemVer] = extractEntryPointsAndVersion(
+    path.join(base, "previousVersion")
+  );
+  const [currentEndpoints, currentSemVer] = extractEntryPointsAndVersion(
+    path.join(base, "currentVersion")
+  );
 
   const commonSource = [
     '"use strict";',
     "",
-    previousVersionEndpoints
-      .map((entryPoint) =>
-        "" === entryPoint
-          ? `import * as previousVersion_ from "previousVersion";`
-          : `import * as previousVersion_${entryPoint} from "previousVersion/${entryPoint}";`
+    previousEndpoints
+      .map(
+        (entryPoint) =>
+          `import * as previousVersion_${entryPoint} from "previousVersion${
+            "" === entryPoint ? "" : "/"
+          }${entryPoint}";`
       )
       .join("\n"),
     "",
-    currentVersionEndpoints
-      .map((entryPoint) =>
-        "" === entryPoint
-          ? `import * as currentVersion_ from "currentVersion";`
-          : `import * as currentVersion_${entryPoint} from "currentVersion/${entryPoint}";`
+    currentEndpoints
+      .map(
+        (entryPoint) =>
+          `import * as currentVersion_${entryPoint} from "currentVersion${
+            "" === entryPoint ? "" : "/"
+          }${entryPoint}";`
       )
       .join("\n"),
     "",
-    `const previousVersion = { ${previousVersionEndpoints
+    `const previousVersion = { ${previousEndpoints
       .map((entryPoint) => `_${entryPoint}: previousVersion_${entryPoint}`)
       .join(", ")} };`,
-    `const currentVersion = { ${currentVersionEndpoints
+    `const currentVersion = { ${currentEndpoints
       .map((entryPoint) => `_${entryPoint}: currentVersion_${entryPoint}`)
       .join(", ")} };`,
     "",
@@ -406,7 +399,12 @@ async function hydrateBaseDirectoryAndGetSemver(
     throw new Error("error: failed to install");
   }
 
-  return [previousSemVer, currentSemVer];
+  return [
+    previousSemVer,
+    currentSemVer,
+    "currentFitsPrevious.ts",
+    "previousFitsCurrent.ts",
+  ];
 }
 
 async function tscOk(base, file) {
@@ -423,16 +421,20 @@ async function liskovSemVerForwardsBackwards(
   currentVersion
 ) {
   return withTempDir(path.join(os.tmpdir(), "liskov-semver-"), async (base) => {
-    const [previousSemVer, currentSemVer] =
-      await hydrateBaseDirectoryAndGetSemver(
-        root,
-        previousVersion,
-        currentVersion,
-        base
-      );
+    const [
+      previousSemVer,
+      currentSemVer,
+      currentFitsPreviousTs,
+      previousFitsCurrentTs,
+    ] = await createVersionWitnesses(
+      root,
+      previousVersion,
+      currentVersion,
+      base
+    );
     const [currentFitsPrevious, previousFitsCurrent] = await Promise.all([
-      tscOk(base, "currentFitsPrevious.ts"),
-      tscOk(base, "previousFitsCurrent.ts"),
+      tscOk(base, currentFitsPreviousTs),
+      tscOk(base, previousFitsCurrentTs),
     ]);
     return [
       previousSemVer,
