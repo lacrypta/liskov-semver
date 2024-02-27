@@ -668,20 +668,27 @@ async function main(errorOnDirty) {
   const [previousSemVer, currentSemVer, forwards, backwards] =
     await liskovSemVerForwardsBackwards(root, previousVersion, currentVersion);
 
+  process.stderr.write(`[PREV SEMVER] ${previousSemVer}\n`);
+  process.stderr.write(`[CURR SEMVER] ${currentSemVer}\n`);
+
   let newSemVer = "0.1.0";
   if (forwards) {
     if (backwards) {
       // patch
+      process.stderr.write(`[NEXT SEMVER] <PATCH>\n`);
       newSemVer = semver.inc(previousSemVer, "patch");
     } else {
       // minor
+      process.stderr.write(`[NEXT SEMVER] <MINOR>\n`);
       newSemVer = semver.inc(previousSemVer, "minor");
     }
   } else if (0 === semver.major(previousSemVer)) {
     // minor
+    process.stderr.write(`[NEXT SEMVER] <0-MAJOR>\n`);
     newSemVer = semver.inc(previousSemVer, "minor");
   } else {
     // major
+    process.stderr.write(`[NEXT SEMVER] <MAJOR>\n`);
     newSemVer = semver.inc(previousSemVer, "major");
   }
 
