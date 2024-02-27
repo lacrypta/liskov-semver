@@ -31,6 +31,13 @@ import { hideBin } from "yargs/helpers";
 // -- OS ----------------------------------------------------------------------------------------------------------------------------------
 // ----------------------------------------------------------------------------------------------------------------------------------------
 
+/**
+ * Apply the given prefix to all given lines.
+ *
+ * @param {string[]} lines - The lines to prefix.
+ * @param {string} prefix - Te prefix to apply.
+ * @returns {string} The resulting `string`.
+ */
 function prefixAll(lines, prefix) {
   return (
     lines
@@ -41,6 +48,14 @@ function prefixAll(lines, prefix) {
   );
 }
 
+/**
+ * Wrapper around {@linkcode child_process.spawn} that returns everything neatly.
+ *
+ * @param {string} command - Command to execute.
+ * @param {string[] | undefined} args - Arguments to pass to the given command.
+ * @param {child_process.SpawnOptionsWithoutStdio | undefined} options - Options to pass on to {@linkcode child_process.spawn}.
+ * @returns {Promise<{code: number, stdout: string, stderr: string}>} A {@linkcode Promise} that resolves to an `object` with the exist status, standard output, and standard error strings.
+ */
 async function spawn(command, args, options) {
   return new Promise((resolve, _reject) => {
     let stdout = "";
@@ -70,6 +85,12 @@ async function spawn(command, args, options) {
   });
 }
 
+/**
+ * Determine whether the given path exists or not.
+ *
+ * @param {string} path - Path to check the existence of.
+ * @returns {Promise<boolean>} Resolves with `true` if the given path exists, `false` otherwise.
+ */
 async function exists(path) {
   return fs.promises.access(path, fs.constants.F_OK).then(
     () => true,
@@ -77,6 +98,24 @@ async function exists(path) {
   );
 }
 
+/**
+ * A callback for the {@linkcode withTempDir} function.
+ *
+ * @callback withTempDirCallback
+ * @param {string} tempDir - The temporary directory created.
+ * @returns {*} Whatever the callback returns.
+ */
+
+/**
+ * Create a new temporary directory under the given prefix, and call the given callback on it.
+ *
+ * This function will create a temporary directory on the given directory prefix, and call the given callback with the created directory's path as argument.
+ * Once the callback finishes, the temporary directory is deleted.
+ *
+ * @param {string} prefix - The prefix under which to create the temporary directory.
+ * @param {withTempDirCallback} callback - The callback to execute.
+ * @returns {Promise<*>} Resolves to whatever the callback returns.
+ */
 async function withTempDir(prefix, callback) {
   let tempDir = null;
   try {
@@ -97,11 +136,22 @@ async function withTempDir(prefix, callback) {
 // -- Git ---------------------------------------------------------------------------------------------------------------------------------
 // ----------------------------------------------------------------------------------------------------------------------------------------
 
+/**
+ * Return the git root of the current directory, or `null` if none found.
+ *
+ * @returns {Promise<string | null>} Resolves to the git root dir, or `null` if none found.
+ */
 async function getRoot() {
   const { code, stdout } = await spawn("git", ["rev-parse", "--show-toplevel"]);
   return 0 === code ? stdout.trim() : null;
 }
 
+/**
+ * Determine whether the given git root is dirty or not.
+ *
+ * @param {string} root - The git root to query.
+ * @returns {Promise<boolean>} Resolves to `true` if the given got root is dirty, `false` otherwise.
+ */
 async function isDirty(root) {
   const { code, stdout } = await spawn("git", ["status", "--porcelain"], {
     cwd: root,
@@ -109,6 +159,14 @@ async function isDirty(root) {
   return !(0 === code && "" === stdout.trim());
 }
 
+/**
+ * Determine whether one git reference is reachable from another.
+ *
+ * @param {string} root - The git root to query.
+ * @param {string} oldRef - The git reference to use as "source".
+ * @param {string} newRef - The git reference to use as "destination"
+ * @returns {Promise<boolean>} Resolves to `true` if the "destination" is reachable from the "source", `false` otherwise.
+ */
 async function isReachable(root, oldRef, newRef) {
   const { code, stdout } = await spawn(
     "git",
@@ -118,6 +176,12 @@ async function isReachable(root, oldRef, newRef) {
   return 0 === code && "" !== stdout.trim();
 }
 
+/**
+ * Retrieve the largest amongst all the tags that look as semver `string`s.
+ *
+ * @param {string} root - The git root to query.
+ * @returns {Promise<string | null>} Resolves to the tag that looks like the highest semver `string`, or `null` if none found.
+ */
 async function getHighestVersionTag(root) {
   const { code, stdout } = await spawn("git", ["tag", "--list"], {
     cwd: root,
@@ -130,6 +194,12 @@ async function getHighestVersionTag(root) {
   return tags[0] ?? null;
 }
 
+/**
+ * Retrieve the current git branch.
+ *
+ * @param {string} root - The git root to query.
+ * @returns {Promise<string | null>} Resolves to the current branch name, or `null` if none found.
+ */
 async function getCurrentBranch(root) {
   const { code, stdout } = await spawn("git", ["branch", "--show-current"], {
     cwd: root,
@@ -137,6 +207,14 @@ async function getCurrentBranch(root) {
   return 0 === code ? stdout.trim() : null;
 }
 
+/**
+ * Retrieve the commit hash of the given git reference.
+ *
+ * @param {string} root - The git root to query.
+ * @param {string} ref - The reference name to look for.
+ * @param {string} refType - The reference type to look for (eg. "tag").
+ * @returns {Promise<string | null>} Resolves to the commit hash, or `null` if none found.
+ */
 async function getRefCommit(root, ref, refType) {
   const { code, stdout } = await spawn(
     "git",
@@ -148,6 +226,14 @@ async function getRefCommit(root, ref, refType) {
   return 0 === code ? stdout.trim() : null;
 }
 
+/**
+ * Shallowly clone the given local repository on the given git reference only.
+ *
+ * @param {string} root - The git root to use.
+ * @param {string} to - The directory onto which to clone to.
+ * @param {string} ref - The git reference to clone.
+ * @returns {Promise<boolean>} Resolves with `true` if cloning was successful, `false` otherwise.
+ */
 async function cloneTo(root, to, ref) {
   const { code } = await spawn("git", [
     "clone",
@@ -172,6 +258,12 @@ async function cloneTo(root, to, ref) {
 // -- *PM ---------------------------------------------------------------------------------------------------------------------------------
 // ----------------------------------------------------------------------------------------------------------------------------------------
 
+/**
+ * Detect the package manager in use on the given directory.
+ *
+ * @param {string} dir - Directory containing the `package.json` file.
+ * @returns {Promise<"yarn" | "pnpm" | "npm">} Resolves with the detected package manager, defaulting to `"npm"` if no package manager found.
+ */
 async function pm(dir) {
   if (await exists(path.join(dir, "yarn.lock"))) {
     return "yarn";
@@ -181,6 +273,18 @@ async function pm(dir) {
   return "npm";
 }
 
+/**
+ * Install the package dependencies on the given directory.
+ *
+ * This function will either run:
+ *
+ * - `yarn install --production` if the detected package manager is `yarn`,
+ * - `pnpm install --prod` if the detected package manager is `pnpm`, or
+ * - `npm install --production` if the detected package manager is `npm` (default).
+ *
+ * @param {string} dir - The directory containing the `package.json` file.
+ * @returns {Promise<boolean>} Resolves to `true` if install was successful, `false` otherwise.
+ */
 async function pm_install(dir) {
   const command = await pm(dir);
   const args = {
@@ -192,6 +296,15 @@ async function pm_install(dir) {
   return 0 === code;
 }
 
+/**
+ * Rename the package in the given directory.
+ *
+ * This function will simply run `npm pkg set name=NAME`, it does not depend on the detected package manager.
+ *
+ * @param {string} dir - The directory containing the `package.json` file.
+ * @param {string} name - The new name to use.
+ * @returns {Promise<boolean>} Resolves to `true` if the rename was successful, `false` otherwise.
+ */
 async function pm_rename(dir, name) {
   const { code } = await spawn("npm", ["pkg", "set", `name=${name}`], {
     cwd: dir,
@@ -199,6 +312,18 @@ async function pm_rename(dir, name) {
   return 0 === code;
 }
 
+/**
+ * Build the package in the given directory.
+ *
+ * This function will either run:
+ *
+ * - `yarn run build` if the detected package manager is `yarn` (and a `build` script indeed exists),
+ * - `pnpm run --if-present build` if the detected package manager is `pnpm`, or
+ * - `npm run --if-present build` if the detected package manager is `npm` (default).
+ *
+ * @param {string} dir - The directory containing the `package.json` file.
+ * @returns {Promise<boolean>} Resolves to `true` if build was successful, `false` otherwise.
+ */
 async function pm_build(dir) {
   const command = await pm(dir);
   switch (command) {
@@ -226,6 +351,19 @@ async function pm_build(dir) {
   }
 }
 
+/**
+ * Pack the package unu the given directory and rename the package to the given destination path.
+ *
+ * This function will either run:
+ *
+ * - `yarn pack` and move `package.tgz` if the detected package manager is `yarn`,
+ * - `pnpm pack` and move the resulting file if the detected package manager is `pnpm`, or
+ * - `npm pack` and move the resulting file  if the detected package manager is `npm` (default).
+ *
+ * @param {string} dir - The directory containing the `package.json` file.
+ * @param {string} to - THe directory to copy the generated pack into.
+ * @returns {Promise<boolean>} Resolves to `true` if pack generation and moving was successful, `false` otherwise.
+ */
 async function pm_packTo(dir, to) {
   const command = await pm(dir);
   let packed = null;
@@ -262,6 +400,13 @@ async function pm_packTo(dir, to) {
 // -- SemVer ------------------------------------------------------------------------------------------------------------------------------
 // ----------------------------------------------------------------------------------------------------------------------------------------
 
+/**
+ * Determine the greatest between two semver `string`s.
+ *
+ * @param {string} leftSemVer - The first semver to compare.
+ * @param {string} rightSemVer - The second semver to compare.
+ * @returns {string} The greatest of the two given semvers.
+ */
 function latest(leftSemVer, rightSemVer) {
   let semVers = [leftSemVer, rightSemVer];
   semVers.sort(semver.rcompare);
@@ -272,6 +417,15 @@ function latest(leftSemVer, rightSemVer) {
 // -- Main --------------------------------------------------------------------------------------------------------------------------------
 // ----------------------------------------------------------------------------------------------------------------------------------------
 
+/**
+ * Clone the given git reference from the given git root, rename it, install its dependencies, build it, and pack it into the given base directory.
+ *
+ * @param {string} root - The git root to use (where `package.json` is located).
+ * @param {string} ref - The git reference to create a packed dependency for.
+ * @param {string} base - The directory unto which to write the working files.
+ * @param {string} name - The name to use for the created dependency.
+ * @returns {Promise<undefined>} Resolves with `undefined` if dependency creation was successful.
+ */
 async function createTgzDependency(root, ref, base, name) {
   const dir = path.join(base, name);
 
@@ -294,6 +448,12 @@ async function createTgzDependency(root, ref, base, name) {
   }
 }
 
+/**
+ * Scan the directory containing a `package.json` file to extract TypeScript entry points and determine the package version.
+ *
+ * @param {string} dir - The directory where the `package.json` file resides.
+ * @returns {[string[], string | null]} A pair consisting of the entry points array, and the detected version (or `null` if none detected).
+ */
 function extractEntryPointsAndVersion(dir) {
   const packageJsonContents = JSON.parse(
     fs.readFileSync(path.join(dir, "package.json"))
@@ -316,6 +476,22 @@ function extractEntryPointsAndVersion(dir) {
   return [entryPoints, semver.valid(packageJsonContents.version ?? null)];
 }
 
+/**
+ * Crete the version witnesses from the given git root, and "previous" and "current" references, using the given temporary directory.
+ *
+ * Creating the version witnesses implies:
+ *
+ * 1. creating each individual version's packed dependencies,
+ * 2. creating the witness `package.json` file,
+ * 3. creating the witnesses proper, and
+ * 4. installing the witness project itself.
+ *
+ * @param {string} root - The git root to use.
+ * @param {string} previousVersion - The "previous version" git reference to use.
+ * @param {string} currentVersion - The "current version" git reference to use.
+ * @param {string} base - The temporary directory into which to create the version witnesses.
+ * @returns {Promise<[string, string, string, string]>} Resolves with a 4-tuple of the "previous" semver, "current" semver, "backwards" witness, and "forwards" witness.
+ */
 async function createVersionWitnesses(
   root,
   previousVersion,
@@ -409,6 +585,13 @@ async function createVersionWitnesses(
   ];
 }
 
+/**
+ * Test the given file in the given directory to see whether `tsc` finds errors within it.
+ *
+ * @param {string} base - Temporary directory where the files to test are stored.
+ * @param {string} file - Base name of the file to test.
+ * @returns {Promise<boolean>} Resolves with `true` if the `tsc` compiler finds no problems with the tested file, `false` otherwise.
+ */
 async function tscOk(base, file) {
   const ts = path.join(base, file);
   const { code } = await spawn("tsc", ["--noEmit", "--strict", ts], {
@@ -417,6 +600,16 @@ async function tscOk(base, file) {
   return 0 === code;
 }
 
+/**
+ * Run the complete Liskov checking procedure from the given git root for the given "previous" and "current" version references.
+ *
+ * Running the complete Liskov checking procedure entails creating the version witnesses (via {@linkcode createVersionWitnesses}), and running `tsc` on each witness.
+ *
+ * @param {string} root - The git root to use.
+ * @param {string} previousVersion - The "previous" git reference to use.
+ * @param {string} currentVersion - The "current" git reference to use.
+ * @returns {Promise<string, string, boolean, boolean>} Resolves with a 4-tuple of the "previous" semver, "current" semver, "backwards" witness result, and "forwards" witness result.
+ */
 async function liskovSemVerForwardsBackwards(
   root,
   previousVersion,
@@ -447,6 +640,13 @@ async function liskovSemVerForwardsBackwards(
   });
 }
 
+/**
+ * Main Liskov SemVer executor.
+ *
+ * @param {boolean} errorOnDirty - Whether a dirty git root is an error or not.
+ * @param {boolean} errorOnUnreachable - Whether the "previous" version's commit not being able to reach the "current" version's one is an error or not.
+ * @returns {Promise<string>} Resolves to the semver `string` determined to be adequate for the current changes.
+ */
 async function main(errorOnDirty, errorOnUnreachable) {
   const root = await getRoot(".");
   if (null === root) {
