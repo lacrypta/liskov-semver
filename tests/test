@@ -1,0 +1,42 @@
+#! /usr/bin/env bash
+
+BASE_DIR="$(git rev-parse --show-toplevel)";
+TEMP_DIR="$(mktemp -d 2> /dev/null || mktemp -d -t 'mytmpdir')";
+
+trap 'rm -rf "${TEMP_DIR}"; trap - EXIT; exit' EXIT INT HUP;
+
+testHash() (
+  echo -n "Testing \"$(git log -n 1 --pretty=format:%s "${2}")\" ... ";
+  git reset --hard "${2}" > /dev/null || exit 1;
+  if ! [ "${1}" = "$(npx "${BASE_DIR}" 2> /dev/null)" ]; then
+    echo 'failed!';
+    exit 1;
+  else
+    echo 'passed!';
+    exit 0;
+  fi;
+)
+
+pushd "${TEMP_DIR}" > /dev/null || exit 1;
+git clone "${BASE_DIR}/tests/liskov-semver-test" &> /dev/null || exit 1;
+cd 'liskov-semver-test' || exit 1;
+
+OK='OK';
+
+if ! testHash '0.1.0' '8e6951a99c0b3c429ba63421bfd3089b467612ec'; then OK='KO'; fi;
+if ! testHash '0.1.1' '0c7ec5eb686498a5d69ca38aba73720ef78363b3'; then OK='KO'; fi;
+if ! testHash '0.2.0' '755c3d5b5f986d7a244ae3cda7619d4a5aabf72a'; then OK='KO'; fi;
+if ! testHash '0.3.0' '761fa2851cc7ffb7f8982449fada15c498f5ddfb'; then OK='KO'; fi;
+if ! testHash '1.0.1' '047d16c1fe9b1e4e85d4b2008ba36d5799087782'; then OK='KO'; fi;
+if ! testHash '1.1.0' 'e8e3253ce7bf6b7382d4782a5c23cd3e2a0bb72d'; then OK='KO'; fi;
+if ! testHash '2.0.0' '3dffbd52eb6be62fabc6a60cedc3156f454ce057'; then OK='KO'; fi;
+
+popd > /dev/null || exit 1;
+
+if [ 'KO' = "${OK}" ]; then
+  echo "Some tests failed! D:";
+  exit 1;
+else
+  echo "All tests passed! :D";
+  exit 0;
+fi;
