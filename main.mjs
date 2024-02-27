@@ -292,6 +292,7 @@ async function createTgzDependency(root, ref, base, name) {
   if (!(await pm_packTo(dir, path.join(base, `${name}.tgz`)))) {
     throw new Error("error: failed to pack");
   }
+}
 
 function extractEntryPointsAndVersion(dir) {
   const packageJsonContents = JSON.parse(
