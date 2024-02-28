@@ -268,12 +268,16 @@ async function pm(dir) {
  * @param {string} dir - The directory containing the `package.json` file.
  * @returns {Promise<boolean>} Resolves to `true` if install was successful, `false` otherwise.
  */
-async function pm_install(dir) {
+async function pm_install(dir, production) {
   const command = await pm(dir);
   const args = {
-    yarn: ["install", "--production"],
-    pnpm: ["install", "--prod"],
-    npm: ["install", "--production"],
+    yarn: ["install", "--non-interactive"].concat(
+      production ? ["--production"] : []
+    ),
+    pnpm: ["install", "--frozen-lockfile"].concat(production ? ["--prod"] : []),
+    npm: ["install", "--no-fund", "--no-audit"].concat(
+      production ? ["--production"] : []
+    ),
   };
   const { code } = await spawn(command, args[command], { cwd: dir });
   return 0 === code;
@@ -420,7 +424,7 @@ async function createTgzDependency(root, ref, base, name) {
   if (!(await pm_rename(dir, name))) {
     throw new Error("error: failed to rename");
   }
-  if (!(await pm_install(dir))) {
+  if (!(await pm_install(dir, false))) {
     throw new Error("error: failed to install");
   }
   if (!(await pm_build(dir))) {
@@ -556,7 +560,7 @@ async function createVersionWitnesses(
     ),
   ]);
 
-  if (!(await pm_install(base))) {
+  if (!(await pm_install(base, true))) {
     throw new Error("error: failed to install");
   }
 
