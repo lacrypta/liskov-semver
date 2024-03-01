@@ -32,6 +32,17 @@ import { hideBin } from "yargs/helpers";
 // ----------------------------------------------------------------------------------------------------------------------------------------
 
 /**
+ * Return the last line of the give `string`.
+ *
+ * @param {string[]} lines - The lines to analyze.
+ * @returns {string} The last input line.
+ */
+function lastLine(lines) {
+  const allLines = lines.trim().split('\n');
+  return allLines[allLines.length - 1];
+}
+
+/**
  * Apply the given prefix to all given lines.
  *
  * @param {string[]} lines - The lines to prefix.
@@ -376,7 +387,7 @@ async function pm_packTo(dir, to) {
       if (0 !== npmPnpmPackCode) {
         return false;
       }
-      packed = npmPnpmPackStdout.trim();
+      packed = lastLine(npmPnpmPackStdout.trim());
       break;
   }
   const { code } = await spawn("mv", [path.resolve(dir, packed), to]);
