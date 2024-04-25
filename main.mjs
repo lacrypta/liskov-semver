@@ -38,7 +38,7 @@ import { hideBin } from "yargs/helpers";
  * @returns {string} The last input line.
  */
 function lastLine(lines) {
-  const allLines = lines.trim().split('\n');
+  const allLines = lines.trim().split("\n");
   return allLines[allLines.length - 1];
 }
 
@@ -592,10 +592,19 @@ async function createVersionWitnesses(
  */
 async function tscOk(base, file) {
   const ts = path.join(base, file);
-  const { code } = await spawn("tsc", ["--noEmit", "--strict", ts], {
+  const { stdout } = await spawn("tsc", ["--noEmit", "--strict", ts], {
     cwd: base,
   });
-  return 0 === code;
+
+  // ref: https://stackoverflow.com/a/6969486
+  const errRegExp = new RegExp(
+    `^${file.replace(
+      /[/\-\\^$*+?.()|[\]{}]/g,
+      "\\$&"
+    )}\\(\\d+,\\d+\\): error TS2345:`
+  );
+
+  return stdout.split("\n").every((line) => !errRegExp.test(line));
 }
 
 /**
